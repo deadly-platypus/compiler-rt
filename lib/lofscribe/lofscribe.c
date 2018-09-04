@@ -68,14 +68,46 @@ static inline int isPointerLike(TypeID typeId) {
     return (typeId == ArrayTyID || typeId == PointerTyID);
 }
 
-static FuncArg* create_arg(Data value, TypeID typeId) {
+static PtrVal* create_pointer_val(Data value, u_int64_t size) {
+    PtrVal* result = (PtrVal*)malloc(sizeof(PtrVal));
+    if(!result) {
+        fprintf(stderr, "Could not allocate PtrVal! Exiting...\n");
+        exit(1);
+    }
+    result->value = (char*)malloc(size);
+    if(!result->value) {
+        fprintf(stderr, "Could not allocate PtrVal.value! Exiting\n");
+        exit(1);
+    }
+    result->loc = value.pval;
+    memcpy(result->value, value.pval, size);
+
+    return result;
+}
+
+static FuncArg* create_arg(Data value, TypeID typeId, u_int64_t size) {
     FuncArg* arg = (FuncArg*)malloc(sizeof(FuncArg));
     if(!arg) {
         fprintf(stderr, "Could not allocate FuncArg! Exiting...\n");
         exit(1);
     }
-    arg->value = value;
+    
+    arg->size = size;
     arg->typeId = typeId;
+    
+    /* Read pointer data */
+    if(isPointerLike(typeId)) {
+        if(size == sizeof(char)) {
+            /* This is a char* */
+            arg->size = strlen((char*)value.pval);
+            /* arg->size + 1 to accomodate the null terminator */
+            arg->value.pval = create_pointer_val(value, arg->size + 1);
+        } else {
+            arg->value.pval = create_pointer_val(value, size);
+        }
+    } else {
+        arg->value = value;
+    }
 
     return arg;
 }
@@ -99,25 +131,27 @@ void lof_precall(void* funcaddr) {
     //printf("lof_precall called function at %p\n", funcaddr);
 }
 
-void lof_record_arg(Data parameter, TypeID typeId) {
+void lof_record_arg(Data parameter, TypeID typeId, size_t size) {
     /*printf("lof_record_arg called with parameter = %p and is%s a pointer\n",
             parameter.pval, isPointerLike(typeId) ? "" : " NOT");*/
 
+    printf("size = %lu\n", size);
     Stack *s = (Stack*)curr->data;
 
-    FuncArg *arg = create_arg(parameter, typeId);
+    FuncArg *arg = create_arg(parameter, typeId, size / 8);
     LLNode* node = create_node(arg);
 
     stack_push(s, node);
 }
 
-void lof_postcall(Data returnValue, TypeID typeId) {
+void lof_postcall(Data returnValue, TypeID typeId, size_t size) {
     /*printf("lof_postcall called with returnValue = %p and is%s a pointer\n",
             returnValue.pval, isPointerLike(typeId) ? "" : " NOT");*/
 
     FuncArg retVal;
     retVal.typeId = typeId;
     retVal.value = returnValue;
+    retVal.size = size / 8;
 
     LLNode* node = stack_pop(functionCalls);
     Stack* s = (Stack*)node->data;

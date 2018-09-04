@@ -28,9 +28,13 @@ typedef enum TypeID {
     VectorTyID       ///< 16: SIMD 'packed' format, or other vector type
 } TypeID;
 
+typedef struct ptrval {
+    void* loc;
+    char* value;
+} PtrVal;
+
 typedef union Data {
         void* pval;
-        char* strval;
         int ival;
         long lval;
         char cval;
@@ -38,20 +42,21 @@ typedef union Data {
         double dval;
 } Data;
 
-
 /* Called to allocate a new function entry onto the stack */
 void lof_precall(void* funcaddr);
 
 /* Records the input data to a function */
 void lof_record_arg(
         Data parameter,     /* The value of an argument passed to a function */
-        TypeID typeId       /* The type of the argument */
+        TypeID typeId,      /* The type of the argument */
+        size_t size      /* Allocated size for pointers, or number of bits for primitives */
         );
 
 /* Records the return value, and reports program state changes */
 void lof_postcall(
         Data returnValue,   /* The value of an argument returned from a function */
-        TypeID typeId       /* The type of the return value */
+        TypeID typeId,       /* The type of the return value */
+        size_t size
         );
 
 /* We are going to keep track of function calls using a stack implemented
@@ -60,6 +65,7 @@ void lof_postcall(
 typedef struct func_arg_t {
     Data value;
     TypeID typeId;
+    size_t size
 } FuncArg;
 
 typedef struct ll_node {
