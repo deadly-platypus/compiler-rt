@@ -3,6 +3,7 @@
 #include <string.h>
 #include "lofscribe.h"
 
+
 /* Current function being recorded. curr->data is a Stack* */
 static LLNode* curr;
 
@@ -21,46 +22,45 @@ static void free_function(LLNode* node) {
     free(node);
 }
 
-static FuncArg* create_arg(Data value, DataType dataType, int isPointer) {
+static FuncArg* create_arg(Data value, TypeID typeId) {
     FuncArg* arg = (FuncArg*)malloc(sizeof(FuncArg));
     if(!arg) {
         fprintf(stderr, "Could not allocate FuncArg! Exiting...\n");
         exit(1);
     }
     arg->value = value;
-    arg->data_type = dataType;
-    arg->isPointer = isPointer;
+    arg->typeId = typeId;
 
     return arg;
 }
 
-void lof_precall(int numargs) {
+void lof_precall(void* funcaddr) {
     if(functionCalls == NULL) {
         functionCalls = create_stack();
     }
 
     curr = NULL;
-    printf("lof_precall called with numargs = %d\n", numargs);
+    printf("lof_precall called function at %p\n", funcaddr);
 }
 
-void lof_record_arg(Data parameter, int isPointer, DataType dataType) {
+void lof_record_arg(Data parameter, TypeID typeId) {
     printf("lof_record_arg called with parameter = %p and is%s a pointer\n", 
-            parameter.pval, isPointer ? "" : " NOT");
+            parameter.pval, typeId == PointerTyID ? "" : " NOT");
     if(!curr) {
         curr = create_node(create_stack());
     }
 
     Stack *s = (Stack*)curr->data;
 
-    FuncArg *arg = create_arg(parameter, dataType, isPointer);
+    FuncArg *arg = create_arg(parameter, typeId);
     LLNode* node = create_node(arg);
 
     stack_push(s, node);
 }
 
-void lof_postcall(Data returnValue, int isPointer, DataType dataType) {
+void lof_postcall(Data returnValue, TypeID typeId) {
     printf("lof_postcall called with returnValue = %p and is%s a pointer\n", 
-            returnValue.pval, isPointer ? "" : " NOT");
+            returnValue.pval, typeId == PointerTyID ? "" : " NOT");
     
     LLNode* node = stack_pop(functionCalls);
 
