@@ -1,6 +1,9 @@
 add_custom_target(lofscribe)
 
-set(LOFSCRIBE_SOURCES lofscribe.c )
+set(LOFSCRIBE_SOURCES 
+    lofscribe.c 
+    linkedlist.c    
+    )
 set(LOFSCRIBE_FLAGS ${SANITIZER_COMMON_FLAGS} )
 
 include_directories(..)
