@@ -23,16 +23,26 @@ static void output_arg(FuncArg* arg, int isLast) {
 
     switch(arg->typeId) {
         case FloatTyID:
-            fprintf(out, "{ \"type\": %d, \"value\": %f }", arg->typeId, arg->value.fval);
+            fprintf(out, "{ \"type\": %d, \"value\": %f, \"size\": %lu }", arg->typeId, arg->value.fval, arg->size);
             break;
         case DoubleTyID:
-            fprintf(out, "{ \"type\": %d, \"value\": %g }", arg->typeId, arg->value.dval);
+            fprintf(out, "{ \"type\": %d, \"value\": %g, \"size\": %lu }", arg->typeId, arg->value.dval, arg->size);
             break;
         case IntegerTyID:
-            fprintf(out, "{ \"type\": %d, \"value\": %d }", arg->typeId, arg->value.ival);
+            fprintf(out, "{ \"type\": %d, \"value\": %d, \"size\": %lu }", arg->typeId, arg->value.ival, arg->size);
             break;
         case PointerTyID:
-            fprintf(out, "{ \"type\": %d, \"value\": \"%p\" }", arg->typeId, arg->value.pval);
+            if(arg->size == sizeof(char)) {
+                PtrVal* ptrval = (PtrVal*)arg->value.pval;
+                fprintf(out,
+                        "{ \"type\": %d, \"size\": %lu, \"precall\": \"%s\", \"postcall\": \"%s\" }",
+                        arg->typeId, arg->size, ptrval->value, ptrval->loc);
+            } else {
+                PtrVal* ptrval = (PtrVal*)arg->value.pval;
+                fprintf(out,
+                        "{ \"type\": %d, \"size\": %lu, \"precall\": \"%d\", \"postcall\": \"%d\" }",
+                        arg->typeId, arg->size, *((int*)ptrval->value), *((int*)ptrval->loc));
+            }
             break;
         default:
             // TODO: Implement the rest
@@ -98,10 +108,8 @@ static FuncArg* create_arg(Data value, TypeID typeId, u_int64_t size) {
     /* Read pointer data */
     if(isPointerLike(typeId)) {
         if(size == sizeof(char)) {
-            /* This is a char* */
-            arg->size = strlen((char*)value.pval);
-            /* arg->size + 1 to accomodate the null terminator */
-            arg->value.pval = create_pointer_val(value, arg->size + 1);
+            /* This is a char* -- +1 to size for the null terminator */
+            arg->value.pval = create_pointer_val(value, strlen((char*)value.pval) + 1);
         } else {
             arg->value.pval = create_pointer_val(value, size);
         }
@@ -135,7 +143,6 @@ void lof_record_arg(Data parameter, TypeID typeId, size_t size) {
     /*printf("lof_record_arg called with parameter = %p and is%s a pointer\n",
             parameter.pval, isPointerLike(typeId) ? "" : " NOT");*/
 
-    printf("size = %lu\n", size);
     Stack *s = (Stack*)curr->data;
 
     FuncArg *arg = create_arg(parameter, typeId, size / 8);

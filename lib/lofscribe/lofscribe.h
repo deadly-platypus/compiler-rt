@@ -25,7 +25,7 @@ typedef enum TypeID {
     StructTyID,      ///< 13: Structures
     ArrayTyID,       ///< 14: Arrays
     PointerTyID,     ///< 15: Pointers
-    VectorTyID       ///< 16: SIMD 'packed' format, or other vector type
+    VectorTyID,      ///< 16: SIMD 'packed' format, or other vector type
 } TypeID;
 
 typedef struct ptrval {
@@ -65,7 +65,7 @@ void lof_postcall(
 typedef struct func_arg_t {
     Data value;
     TypeID typeId;
-    size_t size
+    size_t size;
 } FuncArg;
 
 typedef struct ll_node {
