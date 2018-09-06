@@ -16,6 +16,31 @@ static void cleanup() {
     }
 }
 
+static void output_hex(void* ptr, u_int64_t size) {
+    char* c = (char*)ptr;
+    for(u_int64_t i = 0; i < size; i++) {
+        char curr = c[i];
+        if(curr >= '!' && curr <= '~') {
+            fprintf(out, "%c", curr);
+        } else {
+            fprintf(out, "\\\\%02x", curr);
+        }
+    }
+}
+
+static void output_ptrval(FuncArg* arg) {
+    PtrVal* ptrval = (PtrVal*)arg->value.pval;
+    fprintf(out,
+            "{ \"type\": %d, \"size\": %lu, \"precall\": \"",
+            arg->typeId, arg->size);
+    output_hex(ptrval->value, arg->size);
+    fprintf(out,
+            "\", \"postcall\": \"");
+    output_hex(ptrval->loc, arg->size);
+    fprintf(out,
+            "\" }");
+}
+
 static void output_arg(FuncArg* arg, int isLast) {
     if(!arg) {
         return;
@@ -32,17 +57,7 @@ static void output_arg(FuncArg* arg, int isLast) {
             fprintf(out, "{ \"type\": %d, \"value\": %d, \"size\": %lu }", arg->typeId, arg->value.ival, arg->size);
             break;
         case PointerTyID:
-            if(arg->size == sizeof(char)) {
-                PtrVal* ptrval = (PtrVal*)arg->value.pval;
-                fprintf(out,
-                        "{ \"type\": %d, \"size\": %lu, \"precall\": \"%s\", \"postcall\": \"%s\" }",
-                        arg->typeId, arg->size, ptrval->value, ptrval->loc);
-            } else {
-                PtrVal* ptrval = (PtrVal*)arg->value.pval;
-                fprintf(out,
-                        "{ \"type\": %d, \"size\": %lu, \"precall\": \"%d\", \"postcall\": \"%d\" }",
-                        arg->typeId, arg->size, *((int*)ptrval->value), *((int*)ptrval->loc));
-            }
+            output_ptrval(arg);
             break;
         default:
             // TODO: Implement the rest
@@ -109,7 +124,8 @@ static FuncArg* create_arg(Data value, TypeID typeId, u_int64_t size) {
     if(isPointerLike(typeId)) {
         if(size == sizeof(char)) {
             /* This is a char* -- +1 to size for the null terminator */
-            arg->value.pval = create_pointer_val(value, strlen((char*)value.pval) + 1);
+            arg->size = strlen((char*)value.pval) + 1;
+            arg->value.pval = create_pointer_val(value, arg->size);
         } else {
             arg->value.pval = create_pointer_val(value, size);
         }
