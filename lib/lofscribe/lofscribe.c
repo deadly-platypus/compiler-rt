@@ -149,7 +149,6 @@ static FuncArg* create_arg(Data value, TypeID typeId, u_int64_t size) {
 
 void lof_precall(void* funcaddr) {
     if(functionCalls == NULL) {
-        struct stat fstat;
         functionCalls = create_stack();
         char name[128];
         int counter = 0;
@@ -174,7 +173,13 @@ void lof_precall(void* funcaddr) {
     //printf("lof_precall called function at %p\n", funcaddr);
 }
 
-void lof_record_arg(Data parameter, TypeID typeId, size_t size) {
+void lof_double_record_arg(TypeID typeId, size_t size, double parameter) {
+    Data d;
+    d.dval = parameter;
+    lof_record_arg(typeId, size, d);
+}
+
+void lof_record_arg(TypeID typeId, size_t size, Data parameter) {
     /*printf("lof_record_arg called with parameter = %p and is%s a pointer\n",
             parameter.pval, isPointerLike(typeId) ? "" : " NOT");*/
 
@@ -186,7 +191,13 @@ void lof_record_arg(Data parameter, TypeID typeId, size_t size) {
     stack_push(s, node);
 }
 
-void lof_postcall(Data returnValue, TypeID typeId, size_t size) {
+void lof_double_postcall(TypeID typeId, size_t size, double parameter) {
+    Data d;
+    d.dval = parameter;
+    lof_postcall(typeId, size, d);
+}
+
+void lof_postcall(TypeID typeId, size_t size, Data returnValue) {
     /*printf("lof_postcall called with returnValue = %p and is%s a pointer\n",
             returnValue.pval, isPointerLike(typeId) ? "" : " NOT");*/
 

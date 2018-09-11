@@ -47,17 +47,28 @@ void lof_precall(void* funcaddr);
 
 /* Records the input data to a function */
 void lof_record_arg(
-        Data parameter,     /* The value of an argument passed to a function */
         TypeID typeId,      /* The type of the argument */
-        size_t size      /* Allocated size for pointers, or number of bits for primitives */
+        size_t size,        /* Allocated size for pointers, or number of bits for primitives */
+        Data parameter      /* The value of an argument passed to a function */
+        );
+
+/* A separate call to handle floating types correctly */
+void lof_double_record_arg(TypeID typeId,
+        size_t size,
+        double parameter
         );
 
 /* Records the return value, and reports program state changes */
 void lof_postcall(
-        Data returnValue,   /* The value of an argument returned from a function */
         TypeID typeId,       /* The type of the return value */
-        size_t size
+        size_t size,
+        Data returnValue    /* The value of an argument returned from a function */
         );
+
+void lof_double_postcall(TypeID typeId,
+        size_t size,
+        double returnValue
+);
 
 /* We are going to keep track of function calls using a stack implemented
  * as a linked list. Upon exit, the args are popped off and printed out */
