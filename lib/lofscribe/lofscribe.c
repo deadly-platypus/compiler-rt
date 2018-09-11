@@ -1,6 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #include "lofscribe.h"
 
 /* Current function being recorded. curr->data is a Stack* */
@@ -17,10 +21,15 @@ static void cleanup() {
 }
 
 static void output_hex(void* ptr, u_int64_t size) {
+    if(!ptr) {
+        return;
+    }
     char* c = (char*)ptr;
     for(u_int64_t i = 0; i < size; i++) {
         char curr = c[i];
-        if(curr >= '!' && curr <= '~') {
+        if(curr == '"') {
+            fprintf("\\\\%c", curr);
+        } else if(curr >= '!' && curr <= '~') {
             fprintf(out, "%c", curr);
         } else {
             fprintf(out, "\\\\%02x", curr);
@@ -34,9 +43,11 @@ static void output_ptrval(FuncArg* arg) {
             "{ \"type\": %d, \"size\": %lu, \"precall\": \"",
             arg->typeId, arg->size);
     output_hex(ptrval->value, arg->size);
-    fprintf(out,
-            "\", \"postcall\": \"");
-    output_hex(ptrval->loc, arg->size);
+    if(ptrval->loc) {
+        fprintf(out,
+                "\", \"postcall\": \"");
+        output_hex(ptrval->loc, arg->size);
+    }
     fprintf(out,
             "\" }");
 }
@@ -138,8 +149,16 @@ static FuncArg* create_arg(Data value, TypeID typeId, u_int64_t size) {
 
 void lof_precall(void* funcaddr) {
     if(functionCalls == NULL) {
+        struct stat fstat;
         functionCalls = create_stack();
-        out = fopen("lof-output.json", "w+");
+        char name[128];
+        int counter = 0;
+        sprintf(name, "lof-output-%lu-%d.json", time(NULL), counter);
+        while(access(name, F_OK) != -1) {
+            sprintf(name, "lof-output-%lu-%d.json", time(NULL), ++counter);
+        }
+
+        out = fopen(name, "w+");
         if(!out) {
             fprintf(stderr, "Could not open lof-output.json! Exiting...\n");
             exit(1);
@@ -171,17 +190,14 @@ void lof_postcall(Data returnValue, TypeID typeId, size_t size) {
     /*printf("lof_postcall called with returnValue = %p and is%s a pointer\n",
             returnValue.pval, isPointerLike(typeId) ? "" : " NOT");*/
 
-    FuncArg retVal;
-    retVal.typeId = typeId;
-    retVal.value = returnValue;
-    retVal.size = size / 8;
+    FuncArg* retVal = create_arg(returnValue, typeId, size);
 
     LLNode* node = stack_pop(functionCalls);
     Stack* s = (Stack*)node->data;
     if(hasPrinted) {
         fprintf(out, ",\n");
     } else {
-        fprintf(out, "[");
+        fprintf(out, "{\"name\": \"%s\", \"functions\": [", getenv("_"));
     }
 
     fprintf(out,
@@ -189,10 +205,15 @@ void lof_postcall(Data returnValue, TypeID typeId, size_t size) {
             "\"addr\": \"%p\", "
             "\"return\": ",
             s->bottom->data);
-    output_arg(&retVal, 0);
+    output_arg(retVal, 0);
     fprintf(out, "\"args\": [");
 
     free_function(node);
     fprintf(out, "] } }");
+    if(isPointerLike(typeId)) {
+        free(retVal->value.pval);
+    }
+    free(retVal);
+
     hasPrinted = 1;
 }
