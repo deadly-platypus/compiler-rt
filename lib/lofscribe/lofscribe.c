@@ -203,12 +203,13 @@ void lof_double_postcall(TypeID typeId, size_t size, double parameter) {
 }
 
 void lof_postcall(TypeID typeId, size_t size, Data returnValue) {
-    /*printf("lof_postcall called with returnValue = %p and is%s a pointer\n",
-            returnValue.pval, isPointerLike(typeId) ? "" : " NOT");*/
+    LLNode* node = stack_pop(functionCalls);
+    if(!node) {
+        return;
+    }
 
     FuncArg* retVal = create_arg(returnValue, typeId, size);
 
-    LLNode* node = stack_pop(functionCalls);
     Stack* s = (Stack*)node->data;
     if(hasPrinted) {
         fprintf(out, ",\n");
