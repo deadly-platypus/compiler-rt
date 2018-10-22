@@ -28,7 +28,7 @@ static void output_hex(void* ptr, u_int64_t size) {
     for(u_int64_t i = 0; i < size; i++) {
         char curr = c[i];
         if(curr == '"') {
-            fprintf("\\\\%c", curr);
+            fprintf(out, "\\\\%c", curr);
         } else if(curr >= '!' && curr <= '~') {
             fprintf(out, "%c", curr);
         } else {
@@ -42,11 +42,15 @@ static void output_ptrval(FuncArg* arg) {
     fprintf(out,
             "{ \"type\": %d, \"size\": %lu, \"precall\": \"",
             arg->typeId, arg->size);
-    output_hex(ptrval->value, arg->size);
-    if(ptrval->loc) {
-        fprintf(out,
-                "\", \"postcall\": \"");
-        output_hex(ptrval->loc, arg->size);
+    if(ptrval == NULL) {
+        fprintf(out, "0");
+    } else {
+        output_hex(ptrval->value, arg->size);
+        if (ptrval->loc) {
+            fprintf(out,
+                    "\", \"postcall\": \"");
+            output_hex(ptrval->loc, arg->size);
+        }
     }
     fprintf(out,
             "\" }");
@@ -116,8 +120,9 @@ static PtrVal* create_pointer_val(Data value, u_int64_t size) {
         exit(1);
     }
     result->loc = value.pval;
-    memcpy(result->value, value.pval, size);
-
+    if(value.pval != NULL) {
+        memcpy(result->value, value.pval, size);
+    }
     return result;
 }
 
@@ -135,8 +140,13 @@ static FuncArg* create_arg(Data value, TypeID typeId, u_int64_t size) {
     if(isPointerLike(typeId)) {
         if(size == sizeof(char)) {
             /* This is a char* -- +1 to size for the null terminator */
-            arg->size = strlen((char*)value.pval) + 1;
-            arg->value.pval = create_pointer_val(value, arg->size);
+            if(value.pval == NULL) {
+                arg->size = 0;
+                arg->value.pval = NULL;
+            } else {
+                arg->size = strlen((char *) value.pval) + 1;
+                arg->value.pval = create_pointer_val(value, arg->size);
+            }
         } else {
             arg->value.pval = create_pointer_val(value, size);
         }
@@ -147,7 +157,7 @@ static FuncArg* create_arg(Data value, TypeID typeId, u_int64_t size) {
     return arg;
 }
 
-void lof_precall(void* funcaddr) {
+void lof_precall(char* funcname) {
     if(functionCalls == NULL) {
         functionCalls = create_stack();
         char name[128];
@@ -166,11 +176,9 @@ void lof_precall(void* funcaddr) {
     }
 
     Stack* s = create_stack();
-    s->bottom->data = funcaddr;
+    s->bottom->data = funcname;
     curr = create_node(s);
     stack_push(functionCalls, curr);
-
-    //printf("lof_precall called function at %p\n", funcaddr);
 }
 
 void lof_double_record_arg(TypeID typeId, size_t size, double parameter) {
@@ -180,9 +188,6 @@ void lof_double_record_arg(TypeID typeId, size_t size, double parameter) {
 }
 
 void lof_record_arg(TypeID typeId, size_t size, Data parameter) {
-    /*printf("lof_record_arg called with parameter = %p and is%s a pointer\n",
-            parameter.pval, isPointerLike(typeId) ? "" : " NOT");*/
-
     Stack *s = (Stack*)curr->data;
 
     FuncArg *arg = create_arg(parameter, typeId, size / 8);
@@ -213,7 +218,7 @@ void lof_postcall(TypeID typeId, size_t size, Data returnValue) {
 
     fprintf(out,
             "{ \"function\": {"
-            "\"addr\": \"%p\", "
+            "\"name\": \"%s\", "
             "\"return\": ",
             s->bottom->data);
     output_arg(retVal, 0);

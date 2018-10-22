@@ -43,7 +43,7 @@ typedef union Data {
 } Data;
 
 /* Called to allocate a new function entry onto the stack */
-void lof_precall(void* funcaddr);
+void lof_precall(char* funcname);
 
 /* Records the input data to a function */
 void lof_record_arg(
