@@ -27,13 +27,13 @@ static void output_hex(void* ptr, u_int64_t size) {
     char* c = (char*)ptr;
     for(u_int64_t i = 0; i < size; i++) {
         char curr = c[i];
-        if(curr == '"') {
+/*        if(curr == '"') {
             fprintf(out, "\\\\%c", curr);
         } else if(curr >= '!' && curr <= '~') {
             fprintf(out, "%c", curr);
-        } else {
-            fprintf(out, "\\\\%02x", curr);
-        }
+        } else {*/
+            fprintf(out, "\\x%02x", curr);
+//        }
     }
 }
 
