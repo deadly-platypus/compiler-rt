@@ -51,13 +51,7 @@ static void output_hex(void *ptr, size_t size) {
 
     for (u_int64_t i = 0; i < size; i++) {
         char curr = ((char*)ptr)[i];
-/*        if(curr == '"') {
-            fprintf(out, "\\\\%c", curr);
-        } else if(curr >= '!' && curr <= '~') {
-            fprintf(out, "%c", curr);
-        } else {*/
-        fprintf(out, "\\x%02x", curr);
-//        }
+        fprintf(out, "\\\\x%02x", curr);
     }
 }
 
