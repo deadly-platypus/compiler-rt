@@ -56,7 +56,7 @@ static void output_hex(void *ptr, size_t size) {
         } else if(curr >= '!' && curr <= '~') {
             fprintf(out, "%c", curr);
         } else {*/
-        fprintf(out, "\\x%02x", curr);
+        fprintf(out, "\\\\x%02x", curr);
 //        }
     }
 }
