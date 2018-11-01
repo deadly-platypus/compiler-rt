@@ -20,7 +20,7 @@ static FILE *out;
 static char in_debug;
 static char output_json;
 
-static unsigned int stack_depth;
+static unsigned int stack_depth, function_calls;
 static int hasPrinted = 0;
 
 static void cleanup() {
@@ -48,16 +48,11 @@ static void output_hex(void *ptr, size_t size) {
     if(!make_readable_region(ptr, size)) {
         return;
     }
+    DBG_PRINT("outputting data at %p\n", ptr);
 
     for (u_int64_t i = 0; i < size; i++) {
         char curr = ((char*)ptr)[i];
-/*        if(curr == '"') {
-            fprintf(out, "\\\\%c", curr);
-        } else if(curr >= '!' && curr <= '~') {
-            fprintf(out, "%c", curr);
-        } else {*/
         fprintf(out, "\\\\x%02x", curr);
-//        }
     }
 }
 
@@ -216,7 +211,7 @@ void lof_precall(char *funcname) {
         atexit(cleanup);
     }
 
-    DBG_PRINT("Calling function %s (stack depth: %d)\n", funcname, stack_depth++);
+    DBG_PRINT("Calling function %s (stack depth: %d, functions called: %d)\n", funcname, stack_depth++, function_calls++);
 
     Stack *s = create_stack();
     s->bottom->data = strdup(funcname);
