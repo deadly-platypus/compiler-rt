@@ -34,7 +34,7 @@ static int make_readable_region(void* ptr, size_t size) {
     char *c = (char *) ((long)ptr & ~(getpagesize() - 1));
     errno = 0;
     if(mprotect(c, (char*)ptr - c + size, PROT_READ | PROT_WRITE | PROT_EXEC) != 0) {
-        DBG_PRINT("Could not set mprotect on %p (ptr = %p): %s\n", c, ptr, strerror(errno));
+        DBG_PRINT("Could not set mprotect on %p (ptr = %p): %s\n", (void*)c, ptr, strerror(errno));
         return 0;
     }
 
@@ -50,8 +50,8 @@ static void output_hex(void *ptr, size_t size) {
     }
     DBG_PRINT("outputting data at %p\n", ptr);
 
-    for (u_int64_t i = 0; i < size; i++) {
-        char curr = ((char*)ptr)[i];
+    for (size_t i = 0; i < size; i++) {
+        unsigned char curr = ((unsigned char*)ptr)[i];
         fprintf(out, "\\\\x%02x", curr);
     }
 }
@@ -59,8 +59,8 @@ static void output_hex(void *ptr, size_t size) {
 static void output_ptrval(FuncArg *arg) {
     PtrVal *ptrval = (PtrVal *) arg->value.pval;
     fprintf(out,
-            "{ \"type\": %d, \"size\": %lu, \"precall\": \"",
-            arg->typeId, arg->size);
+            "{ \"type\": %d, \"size\": %lu, \"location\": \"%p\", \"precall\": \"",
+            arg->typeId, arg->size, arg->value.pval);
     if (ptrval == NULL) {
         fprintf(out, "0");
     } else {
@@ -129,15 +129,16 @@ static inline int isPointerLike(TypeID typeId) {
 }
 
 static PtrVal *create_pointer_val(Data value, size_t size) {
+    errno = 0;
     PtrVal *result = (PtrVal *) malloc(sizeof(PtrVal));
     if (!result) {
-        fprintf(stderr, "Could not allocate PtrVal! Exiting...\n");
+        fprintf(stderr, "Could not allocate PtrVal! Error is %s. Exiting...\n", strerror(errno));
         exit(1);
     }
 
     result->value = (char *) malloc(size);
     if (!result->value) {
-        fprintf(stderr, "Could not allocate PtrVal.value! Exiting\n");
+        fprintf(stderr, "Could not allocate PtrVal.value! Error is %s. Exiting...\n", strerror(errno));
         exit(1);
     }
     result->loc = value.pval;
@@ -150,9 +151,10 @@ static PtrVal *create_pointer_val(Data value, size_t size) {
 }
 
 static FuncArg *create_arg(Data value, TypeID typeId, size_t size) {
+    errno = 0;
     FuncArg *arg = (FuncArg *) malloc(sizeof(FuncArg));
     if (!arg) {
-        fprintf(stderr, "Could not allocate FuncArg! Exiting...\n");
+        fprintf(stderr, "Could not allocate FuncArg! Error is %s. Exiting...\n", strerror(errno));
         exit(1);
     }
 
@@ -203,9 +205,10 @@ void lof_precall(char *funcname) {
         }
 
 
+        errno = 0;
         out = fopen(name, "w+");
         if (!out) {
-            fprintf(stderr, "Could not open lof-output.json! Exiting...\n");
+            fprintf(stderr, "Could not open lof-output.json! Error is %s. Exiting...\n", strerror(errno));
             exit(1);
         }
         atexit(cleanup);
