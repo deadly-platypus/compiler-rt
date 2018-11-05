@@ -8,6 +8,7 @@
 #include "lofscribe.h"
 #include <sys/mman.h>
 #include <errno.h>
+#include <float.h>
 
 #define MAX_ADDR ((void*)0x7FFFFFFFFFFFFFFF)
 
@@ -30,11 +31,11 @@ static void cleanup() {
     }
 }
 
-static int make_readable_region(void* ptr, size_t size) {
-    char *c = (char *) ((long)ptr & ~(getpagesize() - 1));
+static int make_readable_region(void *ptr, size_t size) {
+    char *c = (char *) ((long) ptr & ~(getpagesize() - 1));
     errno = 0;
-    if(mprotect(c, (char*)ptr - c + size, PROT_READ | PROT_WRITE | PROT_EXEC) != 0) {
-        DBG_PRINT("Could not set mprotect on %p (ptr = %p): %s\n", (void*)c, ptr, strerror(errno));
+    if (mprotect(c, (char *) ptr - c + size, PROT_READ | PROT_WRITE | PROT_EXEC) != 0) {
+        DBG_PRINT("Could not set mprotect on %p (ptr = %p): %s\n", (void *) c, ptr, strerror(errno));
         return 0;
     }
 
@@ -45,13 +46,13 @@ static void output_hex(void *ptr, size_t size) {
     if (!ptr || ptr > MAX_ADDR) {
         return;
     }
-    if(!make_readable_region(ptr, size)) {
+    if (!make_readable_region(ptr, size)) {
         return;
     }
     DBG_PRINT("outputting data at %p\n", ptr);
 
     for (size_t i = 0; i < size; i++) {
-        unsigned char curr = ((unsigned char*)ptr)[i];
+        unsigned char curr = ((unsigned char *) ptr)[i];
         fprintf(out, "\\\\x%02x", curr);
     }
 }
@@ -82,10 +83,13 @@ static void output_arg(FuncArg *arg, int isLast) {
 
     switch (arg->typeId) {
         case FloatTyID:
-            fprintf(out, "{ \"type\": %d, \"value\": %f, \"size\": %lu }", arg->typeId, arg->value.fval, arg->size);
+            fprintf(out, "{ \"type\": %d, \"value\": %.*f, \"size\": %lu }", arg->typeId, FLT_DECIMAL_DIG, arg->value
+                    .fval, arg->size);
             break;
+        case X86_FP80TyID:
         case DoubleTyID:
-            fprintf(out, "{ \"type\": %d, \"value\": %g, \"size\": %lu }", arg->typeId, arg->value.dval, arg->size);
+            fprintf(out, "{ \"type\": %d, \"value\": %.*g, \"size\": %lu }", arg->typeId, DECIMAL_DIG, arg->value
+                    .dval, arg->size);
             break;
         case IntegerTyID:
             fprintf(out, "{ \"type\": %d, \"value\": %d, \"size\": %lu }", arg->typeId, arg->value.ival, arg->size);
@@ -143,7 +147,7 @@ static PtrVal *create_pointer_val(Data value, size_t size) {
     }
     result->loc = value.pval;
     if (value.pval > NULL && value.pval < MAX_ADDR) {
-        if(make_readable_region(value.pval, size)) {
+        if (make_readable_region(value.pval, size)) {
             memcpy(result->value, value.pval, size);
         }
     }
@@ -184,21 +188,21 @@ static FuncArg *create_arg(Data value, TypeID typeId, size_t size) {
 
 void lof_precall(char *funcname) {
     if (functionCalls == NULL) {
-        if(getenv("LOF_DEBUG") && strcmp("true", getenv("LOF_DEBUG")) == 0) {
+        if (getenv("LOF_DEBUG") && strcmp("true", getenv("LOF_DEBUG")) == 0) {
             in_debug = 1;
         }
 
         functionCalls = create_stack();
         char name[128];
         int counter = 0;
-        if(getenv("LOF_OUTPUT_JSON") && strcmp(getenv("LOF_OUTPUT_JSON"), "false") == 0) {
+        if (getenv("LOF_OUTPUT_JSON") && strcmp(getenv("LOF_OUTPUT_JSON"), "false") == 0) {
             strcpy(name, "/dev/null");
         } else {
             sprintf(name, "lof-output-%lu-%d.json", time(NULL), counter);
             output_json = 1;
         }
 
-        if(output_json) {
+        if (output_json) {
             while (access(name, F_OK) != -1) {
                 sprintf(name, "lof-output-%lu-%d.json", time(NULL), ++counter);
             }
@@ -214,7 +218,8 @@ void lof_precall(char *funcname) {
         atexit(cleanup);
     }
 
-    DBG_PRINT("Calling function %s (stack depth: %d, functions called: %d)\n", funcname, stack_depth++, function_calls++);
+    DBG_PRINT("Calling function %s (stack depth: %d, functions called: %d)\n", funcname, stack_depth++,
+              function_calls++);
 
     Stack *s = create_stack();
     s->bottom->data = strdup(funcname);
@@ -252,7 +257,7 @@ void lof_postcall(TypeID typeId, size_t size, Data returnValue) {
     FuncArg *retVal = create_arg(returnValue, typeId, size);
 
     Stack *s = (Stack *) node->data;
-    if(in_debug) {
+    if (in_debug) {
         DBG_PRINT("Exiting %s\n", s->bottom->data);
         stack_depth--;
     }
