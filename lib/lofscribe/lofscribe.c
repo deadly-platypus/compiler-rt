@@ -88,7 +88,7 @@ static void output_arg(FuncArg *arg, int isLast) {
             break;
         case X86_FP80TyID:
         case DoubleTyID:
-            fprintf(out, "{ \"type\": %d, \"value\": %.*g, \"size\": %lu }", arg->typeId, DECIMAL_DIG, arg->value
+            fprintf(out, "{ \"type\": %d, \"value\": %.*f, \"size\": %lu }", arg->typeId, DECIMAL_DIG, arg->value
                     .dval, arg->size);
             break;
         case IntegerTyID:
